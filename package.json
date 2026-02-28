@@ -1,0 +1,51 @@
+{
+  "name": "portal-instalaciones",
+  "version": "1.0.0",
+  "description": "Portal de Instalaciones Navarro",
+  "main": "main.js",
+  "scripts": {
+    "start": "node start.js",
+    "build": "electron-builder --win",
+    "publish": "electron-builder --win --publish always"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.0"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "com.navarro.portalinstalaciones",
+    "productName": "Portal Instalaciones",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "icon.ico"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
+      "installerIcon": "icon.ico",
+      "uninstallerIcon": "icon.ico",
+      "installerHeaderIcon": "icon.ico"
+    },
+    "extraResources": [
+      {
+        "from": "python-server",
+        "to": "python-server",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "publish": {
+      "provider": "github",
+      "owner": "LaMaR4417",
+      "repo": "portal-instalaciones"
+    }
+  }
+}
