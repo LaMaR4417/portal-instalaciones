@@ -2,6 +2,8 @@ const { app, BrowserWindow, ipcMain } = require('electron');
 const { spawn } = require('child_process');
 const path = require('path');
 const http = require('http');
+const fs = require('fs');
+const os = require('os');
 
 // --- Configuracion ---
 const SERVER_PORT = 5000;
@@ -10,6 +12,28 @@ const SERVER_URL = `http://localhost:${SERVER_PORT}`;
 let splashWindow = null;
 let mainWindow = null;
 let pythonProcess = null;
+
+// --- Debug Log (se guarda en el Escritorio) ---
+const LOG_FILE = path.join(os.homedir(), 'Desktop', 'portal_electron_debug.log');
+function debugLog(msg) {
+  const timestamp = new Date().toISOString();
+  const line = `${timestamp} ${msg}\n`;
+  try {
+    fs.appendFileSync(LOG_FILE, line, 'utf-8');
+  } catch (e) { /* ignore */ }
+  console.log(msg);
+}
+// Limpiar log anterior al iniciar
+try { fs.writeFileSync(LOG_FILE, '', 'utf-8'); } catch(e) {}
+debugLog('========================================');
+debugLog('Portal Instalaciones - Electron Debug Log');
+debugLog('Fecha: ' + new Date().toLocaleString());
+debugLog('Platform: ' + process.platform + ' ' + os.release());
+debugLog('Electron: ' + process.versions.electron);
+debugLog('App packaged: ' + (app.isPackaged ? 'SI' : 'NO'));
+debugLog('App path: ' + app.getAppPath());
+debugLog('Resources path: ' + (process.resourcesPath || 'N/A'));
+debugLog('========================================');
 
 // --- Paths ---
 function getPythonServerPath() {
@@ -91,14 +115,32 @@ function startPythonServer() {
     const serverExe = getPythonServerPath();
     const serverDir = getPythonServerDir();
 
+    debugLog('--- Iniciando servidor Python ---');
+    debugLog('serverExe: ' + serverExe);
+    debugLog('serverDir: ' + serverDir);
+
     if (serverExe) {
+      const cwd = path.join(serverDir, '_internal');
+      const exeExists = fs.existsSync(serverExe);
+      const cwdExists = fs.existsSync(cwd);
+      debugLog('servidor.exe existe: ' + exeExists);
+      debugLog('_internal dir existe: ' + cwdExists);
+      if (!exeExists) {
+        debugLog('ERROR: servidor.exe NO ENCONTRADO en ' + serverExe);
+        // Listar contenido del directorio para diagnostico
+        try {
+          const files = fs.readdirSync(serverDir);
+          debugLog('Contenido de serverDir: ' + files.join(', '));
+        } catch(e) { debugLog('No se pudo listar serverDir: ' + e.message); }
+      }
       // Produccion: usar el .exe empaquetado
       pythonProcess = spawn(serverExe, ['--no-browser', '--localhost-only'], {
-        cwd: path.join(serverDir, '_internal'),
+        cwd: cwd,
         stdio: ['pipe', 'pipe', 'pipe'],
         windowsHide: true
       });
     } else {
+      debugLog('Modo desarrollo: usando python directamente');
       // Desarrollo: usar python directamente
       pythonProcess = spawn('python', [
         path.join(serverDir, 'servidor_portales.py'),
@@ -110,11 +152,13 @@ function startPythonServer() {
       });
     }
 
+    debugLog('Proceso Python PID: ' + (pythonProcess.pid || 'NO PID'));
+
     let serverReady = false;
 
     pythonProcess.stdout.on('data', (data) => {
       const output = data.toString();
-      console.log('[Python]', output.trim());
+      debugLog('[Python stdout] ' + output.trim());
 
       // Detectar señales del servidor
       if (output.includes('SYNC_START')) {
@@ -146,16 +190,16 @@ function startPythonServer() {
     });
 
     pythonProcess.stderr.on('data', (data) => {
-      console.error('[Python Error]', data.toString().trim());
+      debugLog('[Python stderr] ' + data.toString().trim());
     });
 
     pythonProcess.on('error', (err) => {
-      console.error('Failed to start Python server:', err);
+      debugLog('ERROR al iniciar servidor Python: ' + err.message);
       reject(err);
     });
 
     pythonProcess.on('exit', (code) => {
-      console.log(`Python server exited with code ${code}`);
+      debugLog('Servidor Python termino con codigo: ' + code);
       if (!serverReady) {
         reject(new Error(`Server exited with code ${code}`));
       }
@@ -271,7 +315,7 @@ app.whenReady().then(async () => {
     setTimeout(() => createMainWindow(), 500);
 
   } catch (err) {
-    console.error('Startup error:', err);
+    debugLog('ERROR en startup: ' + err.message);
     sendToSplash('status', 'Error al iniciar. Reintentando...');
 
     // Intentar abrir de todos modos si el servidor responde
