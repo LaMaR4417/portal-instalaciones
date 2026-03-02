@@ -1,6 +1,6 @@
 {
   "name": "portal-instalaciones",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "Portal de Instalaciones Navarro",
   "main": "main.js",
   "scripts": {
