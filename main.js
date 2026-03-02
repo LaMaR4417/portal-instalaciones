@@ -302,6 +302,15 @@ function cleanup() {
 
 // --- App Lifecycle ---
 app.whenReady().then(async () => {
+  // Limpiar cache HTTP de Electron para que sirva HTML frescos
+  try {
+    const ses = require('electron').session.defaultSession;
+    await ses.clearCache();
+    debugLog('Cache de Electron limpiado OK');
+  } catch(e) {
+    debugLog('Error limpiando cache: ' + e.message);
+  }
+
   createSplashWindow();
 
   try {
